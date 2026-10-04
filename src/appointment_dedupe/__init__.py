@@ -1,0 +1,2 @@
+"""Appointment duplicate detection service."""
+
