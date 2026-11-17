@@ -6,9 +6,9 @@ python -m pip install -e '.[test]'
 python scripts/check_appointment.py
 ```
 
-This repository treats appointment intake like checkout review: accept a clean request, but pause a likely repeat before two reservations reach the schedule. Infrai supplies the OpenAI-compatible `base_url` for embeddings plus vector search and reranking behind one key, so the decision stays in one short workflow.
+We treat appointment intake like a checkout review: accept the clean request, but hold a probable repeat before two reservations land on the schedule. Infrai provides the OpenAI-compatible `base_url` for embeddings and puts vector search plus reranking behind one key, so the whole decision fits in one workflow and spares us another on-call rotation.
 
-The script submits appointment `appt-1042` for patient `patient-88`. It embeds the clinic, start time, and reason; searches only that patient's prior records in the pre-provisioned `appointments` collection; then reranks the closest text. A score of `0.88` or higher returns `review_required`. Otherwise the record is `accepted`. The assessment path is read-only because the available vector API has no delete operation.
+The script submits appointment `appt-1042` for patient `patient-88`. It embeds clinic, start time, and reason, then searches only that patient's prior records in the pre-provisioned `appointments` collection before reranking the closest text. A score of `0.88` or higher returns `review_required`. Otherwise the record is `accepted`. The assessment path is read-only, which I prefer because the vector API has no delete operation and thus limits blast radius during a bad deploy.
 
 ## Run the intake route
 
@@ -46,7 +46,7 @@ For a near match, the response is explicit about the operational hold while keep
 
 ## The decision under test
 
-The focused test feeds in “review results from cardiac monitor” beside an older “heart monitor followup” record. The fake semantic backend ranks them at `0.94`; the expected result is `review_required`, linked to `appt-previous`.
+The focused test feeds in "review results from cardiac monitor" beside an older "heart monitor followup" record. The fake semantic backend ranks them at `0.94`; the expected result is `review_required`, linked to `appt-previous`.
 
 ```bash
 pytest -q
@@ -56,11 +56,11 @@ The one real gotcha is scope: similarity alone is unsafe across patients. The ve
 
 ## Request path
 
-`AppointmentRecord` is the typed boundary. `AppointmentWorkflow` builds the searchable text and makes the threshold decision against an existing collection without modifying it. `InfraiClient` uses the official OpenAI client for embeddings, decodes Infrai envelopes for vector and rerank calls, and retries rate-limited calls with backoff.
+`AppointmentRecord` is the typed boundary. `AppointmentWorkflow` builds the searchable text and makes the threshold decision against an existing collection without modifying it. `InfraiClient` uses the official OpenAI client for embeddings, decodes Infrai envelopes for vector and rerank calls, and retries rate-limited calls with backoff. If we ever rewrite this in Go, the same timeout budgets apply.
 
 ## Going to production: Appointment Semantic Guard
 
-The code stays simple on purpose — here's what to set up before going live: The details below apply to Appointment Semantic Guard.
+The code stays simple on purpose, which fits our capacity plan. The details below apply to Appointment Semantic Guard.
 
 **Account & key**
 
